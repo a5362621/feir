@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>我家大王的AJAX</title>
+</head>
+<body>
+</body>
+</html>
+<script>
+
+    /**
+     *     最原生的ajax执行操作
+     */
+     var xhr=new XMLHttpRequest();
+     var arr=[];//用来观察同步异步执行顺序的数组;
+ //    console.log(xhr);
+
+     //请先设置onreadystatechange,否则如果优先执行open()和send(), 在同步的情况下(无论是GET还是POST)都会无反应;异步则没有这种影响;
+     xhr.onreadystatechange=function(){
+ //        //可以看到其中的readyState 和 status两个属性
+         console.log('readyState=',xhr.readyState);
+         console.log('status=',xhr.status);
+
+         //ajax通信过程成功并且已经完成通信获取到后端回馈的结果;
+         if(xhr.readyState==4 && xhr.status==200){
+             //处理服务器发送过来的请求;
+             console.log(xhr);//观察xhr,里面的部分属性已经改变了,例如readyState/status, responseText/response等等;
+
+             //当xhr.responseType='text'或者''时, 获取的是json格式的字符串, 需要把后端传递过来的结果(结果保存在xhr.responseText)进行解析, 获取到json对象;
+             var res=xhr.responseText;
+             console.log(res);//字符串          '{"name":"feir","age":"16","lover":"xin"}'
+             var results=strToJson(res);//json  {name:"feir",age:"16",lover:"xin"}
+
+             //当responseType='json'时, 直接获取已经解析好的json对象
+ //            console.log(xhr.response);//通过xhr.response拿到请求结果;
+ //            var results=xhr.response;
+
+             console.log(results);//json对象  {name:"feir",age:"16",lover:"xin"}
+             console.log(results.name);//feir
+             console.log(results.age);//16
+             console.log(results.lover);//xin
+
+             //通过打印arr, 观察同步异步
+             arr.push('123');
+             console.log('ajaxFinished->',arr);
+         }else if(xhr.readyState==4 && xhr.status!=200){
+             //报通信失败fail;
+             console.log('ajax failed');
+         }
+     }
+
+     //xhr.open('GET','index.php?name=feir&age=16&lover=xin',true);//GET方式, ajax发送数据请求的网址, 是否异步;
+     xhr.open('POST','./index.php',false);//POST方式, ajax发送数据请求的网址,是否异步;
+     xhr.setRequestHeader("Content-type","application/x-www-form-urlencoded");//form表单形式提交
+
+     //xhr.responseType='json';//服务器回馈数据根据json格式解析,用xhr.response接收;//当xhr.open()函数里面指定了第三个参数(async)为同步(false)时, 不可以手动设置xhr.responseType,否则会报错Uncaught DOMException
+
+     //xhr.send(null);//GET方式在url里面进行参数传递,send方法传null就行;
+     xhr.send('name=feir&age=16&lover=xin');//POST方式将传参写成普通格式
+
+
+
+     //通过打印arr, 观察同步异步现象
+     arr.push('456');
+     console.log('afterAjax->',arr);
+     //同步情况下, arr=['123','456'],意味着先执行ajax, 完成以后, 才会继续执行ajax后面的代码; 在ajax未完成的时候, ajax后面的代码是处于代码队列里面等待着的;
+     //异步情况下, arr=['456','123'],证实了异步的意义: ajax未完成, ajax后面的代码依旧依次执行, 不会受到影响, 提高了页面代码执行速度速度,提高用户体验;
+
+
+
+     //json格式字符串转换成标准json对象;
+     function strToJson(str){
+         return JSON.parse(str);
+     }
+
+
+    /**
+     *    ajax封装成函数; 原生和封装不冲突, xhr的作用域不一样;
+     */
+    function $_ajax(json) {
+//    console.log(xhr);
+
+        //验证传入的ajax数据(json格式)是否有必要的参数;
+        if(!json.hasOwnProperty('method')||!json.hasOwnProperty('url')||!json.hasOwnProperty('success')){
+            console.log('json parameters missing')
+            return false;
+        }
+        //个别参数直接给默认值
+        if(!json.hasOwnProperty('data'))json.data='';
+        if(!json.hasOwnProperty('responseType'))json.responseType='';
+        if(!json.hasOwnProperty('isAsync'))json.isAsync=true;
+        //todo json未进行数据验证, 需要用到其他的例如Reg或者数据类型验证, 这里暂时不做处理;
+
+        //创建XMLHttpRequest对象
+        var xhr = new XMLHttpRequest();
+        //指定对象的onreadystatechange绑定函数
+        xhr.onreadystatechange = function () {
+//            console.log('readyState=', xhr.readyState);
+//            console.log('status=', xhr.status);
+            if (xhr.readyState == 4 && xhr.status == 200) {
+                json.success(xhr.response);
+            } else if (xhr.readyState == 4 && xhr.status != 200) {
+                json.failed();
+            }
+        };
+
+        //预备开启ajax;
+        xhr.open(json.method, json.url, json.isAsync);//GET方式, ajax发送数据请求的网址, 异步;
+//        xhr.open('POST','./index.php',true);//GET方式, ajax发送数据请求的网址, 同步;
+
+        //指定ajax的内容类型(HTTP报头)
+        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");//form表单形式提交
+        //指定服务器回调数据的接收类型;
+        if (json.responseType === 'json' && json.isAsync === true) {
+            xhr.responseType = 'json'
+        }
+        //发送ajax请求给后端(发送数据);
+        xhr.send(json.data);
+    }
+
+
+    //POST方式
+//    $_ajax({
+//        method: 'POST',
+//        url: './index.php',
+//        data: 'name=xin&age=26&lover=feir',
+//        responseType: 'json',
+//        success: function (x) {
+//            console.log(x);//json  {name: "xin", age: "26", lover: "feir"}
+//            console.log('ajax successful');
+//        },
+//        failed: function () {
+//            console.log('ajax failed');
+//        },
+//        isAsync: true
+//    });
+
+
+    //GET方式
+    $_ajax({
+        method: 'GET',
+        url: './index.php?name=xin&age=26&lover=feir',
+//        responseType: 'json',
+        success: function (x) {
+            console.log(x);//json  {name: "xin", age: "26", lover: "feir"}
+            console.log('ajax successful');
+        },
+        failed: function () {
+            console.log('ajax failed');
+        },
+//        isAsync: true
+        isAsync: false
+    });
+
+</script>
