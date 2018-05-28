@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>我家大王的登录/注册</title>
+    <style>
+        .login, .register {
+            width:400px;
+            background-color: #eee;
+        }
+
+        .close {
+            width: 20px;
+            height: 20px;
+            font-size: 18px;
+            color: red;
+            line-height: 20px;
+            text-align: center;
+            border: 1px solid red;
+            cursor: pointer;
+        }
+
+        .alertMsg {
+            width: 500px;
+            height: 300px;
+            position: relative;
+            z-index: 100;
+            margin: 100px auto;
+            font-size: 32px;
+            line-height: 300px;
+            text-align: center;
+            background-color: #eee;
+        }
+
+        .success {
+            color: lawngreen;
+        }
+
+        .failed {
+            color: firebrick;
+        }
+    </style>
+</head>
+<body>
+<a href="javascript:void(0)" onclick="showLogin()">登录</a>
+<a href="javascript:void(0)" onclick="showRegister()">注册</a>
+
+
+<div class="login" style="display:none">
+    <div class="close">×</div>
+    <form action="javascript:void(0)" method="POST" onsubmit="doLoginSubmit()">
+        <table>
+            <tr>
+                <td><input type="text" name="username" id='loginName' value="" placeholder="请输入用户名"/></td>
+            </tr>
+            <tr>
+                <td><input type="password" name="password" id='loginPassword' value="" placeholder="请输入密码"/></td>
+            </tr>
+            <tr>
+                <td><input type="text" name="verify" id='loginVerify' value="" placeholder="请输入验证码"/></td>
+            </tr>
+        </table>
+
+        <button>提交</button>
+    </form>
+
+</div>
+
+<div class="register" style="display:none">
+    <div class="close">×</div>
+    <form action="javascript:void(0)" method="POST" onsubmit="doRegisterSubmit()">
+        <table>
+            <tr>
+                <td>用户名:</td>
+                <td><input type="text" name="username" id='registerName' value="" placeholder="请输入用户名"/></td>
+            </tr>
+            <tr>
+                <td>密码:</td>
+                <td><input type="password" name="password" id='registerPassword' value="" placeholder="请输入密码"/></td>
+            </tr>
+            <tr>
+                <td>验证码</td>
+                <td><input type="text" name="verify" id='registerVerify' value="" placeholder="请输入验证码"/></td>
+            </tr>
+        </table>
+
+        <button>提交</button>
+    </form>
+
+
+</div>
+
+<!--提交之后的弹窗-->
+<div class="alertMsg" style="display:none" onclick="closeAlert(this)"></div>
+
+<script>
+    //登录框
+    var loginDiv = document.getElementsByClassName('login')[0];
+    //注册框
+    var registerDiv = document.getElementsByClassName('register')[0];
+
+    //注册/登录成功或者失败的提醒框
+    var alertMsg = document.getElementsByClassName('alertMsg')[0];
+
+
+    //关闭按钮(×按钮)
+    var close=document.getElementsByClassName('close');
+    //关闭按钮的js事件;
+    for(var i=0;i<close.length;i++){
+//        console.log(close[i]);
+        close[i].onclick=function(){
+//            console.log(this);
+//            console.log(this.parentNode);
+            this.parentNode.style.display='none';
+        }
+    }
+
+    //显示登录框
+    function showLogin() {
+        loginDiv.style.display = 'block';
+        registerDiv.style.display = 'none';
+    }
+    //显示注册框
+    function showRegister() {
+        loginDiv.style.display = 'none';
+        registerDiv.style.display = 'block';
+    }
+
+
+    //稍微封装的原生ajax
+    function ajaxPOST(url, data, async) {
+
+        var xhr = new XMLHttpRequest();
+        //    console.log(xhr);
+        //请先设置onreadystatechange,否则如果优先执行open()和send(), 在同步的情况下(无论是GET还是POST)都会无反应;异步则没有这种影响;
+        xhr.onreadystatechange = function () {
+            //        //可以看到其中的readyState 和 status两个属性
+            console.log('readyState=', xhr.readyState);
+            console.log('status=', xhr.status);
+
+            //ajax通信过程成功并且已经完成通信获取到后端回馈的结果;
+            if (xhr.readyState == 4 && xhr.status == 200) {
+                //处理服务器发送过来的请求;
+                console.log(xhr.response);//通过xhr.response拿到请求结果;
+                var results = xhr.response;
+
+                if (results.errno == 0) {
+                    //成功增加弹框的success类样式
+                    alertMsg.setAttribute('class','alertMsg success');
+                } else {
+                    //失败增加弹框的success类样式
+                    alertMsg.setAttribute('class','alertMsg failed');
+                }
+                //改变弹框内容,显示弹框;
+                alertMsg.innerHTML = results.msg;
+                alertMsg.style.display = 'block';
+
+            } else if (xhr.readyState == 4 && xhr.status != 200) {
+                //报通信失败fail;
+                alert('ajax failed, 链接失效,请稍后重试');
+            }
+        }
+
+        //xhr.open('GET','index.php?name=feir&age=16&lover=xin',true);//GET方式, ajax发送数据请求的网址, 是否异步;
+        xhr.open('POST', url, async);//POST方式, ajax发送数据请求的网址,是否异步;
+        xhr.setRequestHeader("Content-type", "application/x-www-form-urlencoded");//form表单形式提交
+
+        xhr.responseType = 'json';//服务器回馈数据根据json格式解析,用xhr.response接收;//当xhr.open()函数里面指定了第三个参数(async)为同步(false)时, 不可以手动设置xhr.responseType,否则会报错Uncaught DOMException
+
+        //xhr.send(null);//GET方式在url里面进行参数传递,send方法传null就行;
+        xhr.send(data);//POST方式将传参写成普通格式
+
+    }
+
+    //登录表单提交事件
+    function doLoginSubmit() {
+        var username = document.getElementById('loginName').value;//用户名
+        var password = document.getElementById('loginPassword').value;//密码
+        var verify = document.getElementById('loginVerify').value;//验证码
+        //拼接ajax传输的数据
+        var data = 'username=' + String(username) + '&password=' + String(password) + '&verify=' + String(verify);
+        console.log(data);
+        //调用原生ajax, post异步发送请求;
+        ajaxPOST('./doLogin.php', data, true);
+    }
+
+    //注册表单提交事件
+    function doRegisterSubmit() {
+        var username = document.getElementById('registerName').value;//用户名
+        var password = document.getElementById('registerPassword').value;//密码
+        var verify = document.getElementById('registerVerify').value;//验证码
+        //拼接ajax传输的数据
+        var data = 'username=' + String(username) + '&password=' + String(password) + '&verify=' + String(verify);
+        console.log(data);
+        //调用原生ajax, post异步发送请求;
+        ajaxPOST('./doRegister.php', data, true);
+    }
+
+    //点一下关闭弹窗;
+    function closeAlert(x) {
+        x.innerHTML = '';
+        x.style.display = 'none';
+    }
+</script>
+</body>
+</html>
